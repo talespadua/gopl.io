@@ -14,8 +14,14 @@ import (
 	"os"
 )
 
+type duplicateInstances struct {
+	count int
+	files []string
+}
+
 func main() {
-	counts := make(map[string]int)
+	counts := make(map[string]duplicateInstances)
+
 	files := os.Args[1:]
 	if len(files) == 0 {
 		countLines(os.Stdin, counts)
@@ -30,19 +36,40 @@ func main() {
 			f.Close()
 		}
 	}
-	for line, n := range counts {
-		if n > 1 {
-			fmt.Printf("%d\t%s\n", n, line)
+	for dupString, dupInstance := range counts {
+		if dupInstance.count > 1 {
+			fmt.Printf("%d\t%s\t%v\n", dupInstance.count, dupString, dupInstance.files)
 		}
 	}
 }
 
-func countLines(f *os.File, counts map[string]int) {
+func countLines(f *os.File, counts map[string]duplicateInstances) {
 	input := bufio.NewScanner(f)
 	for input.Scan() {
-		counts[input.Text()]++
+		if val, ok := counts[input.Text()]; ok {
+			val.count++
+			if !val.fileInSlice(f.Name()) {
+				val.files = append(val.files, f.Name())
+			}
+
+			counts[input.Text()] = val
+		} else {
+			var newCount duplicateInstances
+			newCount.count = 1
+			newCount.files = append(newCount.files, f.Name())
+			counts[input.Text()] = newCount
+		}
 	}
 	// NOTE: ignoring potential errors from input.Err()
+}
+
+func (d *duplicateInstances) fileInSlice(fileName string) bool {
+	for _, fn := range d.files {
+		if fn == fileName {
+			return true
+		}
+	}
+	return false
 }
 
 //!-

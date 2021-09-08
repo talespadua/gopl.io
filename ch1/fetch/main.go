@@ -12,22 +12,40 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 )
 
 func main() {
 	for _, url := range os.Args[1:] {
+		start := time.Now()
+
+		if !strings.HasPrefix(url, "http://") {
+			url = "http://" + url
+		}
+
 		resp, err := http.Get(url)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "fetch: %v\n", err)
 			os.Exit(1)
 		}
-		b, err := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
+		fmt.Println(resp.Status)
+		body_string, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "fetch: reading %s: %v\n", url, err)
 			os.Exit(1)
 		}
-		fmt.Printf("%s", b)
+
+		err = os.WriteFile("out.html", body_string, 0644)
+		resp.Body.Close()
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "writing to file: error: %v", err)
+		}
+
+		time_passed := time.Since(start).Seconds()
+
+		fmt.Println(time_passed)
 	}
 }
 

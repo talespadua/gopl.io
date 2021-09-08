@@ -8,21 +8,37 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
 func main() {
 	start := time.Now()
-	ch := make(chan string)
-	for _, url := range os.Args[1:] {
-		go fetch(url, ch) // start a goroutine
+
+	count := 0
+	fileName := os.Args[1]
+	file, err := os.Open(fileName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "fetchall: %v\n", err)
+		return
 	}
-	for range os.Args[1:] {
+
+	ch := make(chan string)
+
+	input := bufio.NewScanner(file)
+	for input.Scan() {
+		count++
+		indexUrl := strings.Split(input.Text(), ",")
+		go fetch(indexUrl[1], ch) // start a goroutine
+	}
+
+	for i := 0; i <= count; i++ {
 		fmt.Println(<-ch) // receive from channel ch
 	}
 	fmt.Printf("%.2fs elapsed\n", time.Since(start).Seconds())
@@ -30,7 +46,8 @@ func main() {
 
 func fetch(url string, ch chan<- string) {
 	start := time.Now()
-	resp, err := http.Get(url)
+	completeUrl := "http://" + url
+	resp, err := http.Get(completeUrl)
 	if err != nil {
 		ch <- fmt.Sprint(err) // send to channel ch
 		return
